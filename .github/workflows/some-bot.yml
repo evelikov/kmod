@@ -6,7 +6,7 @@ on:
 
 # Need write perm, in order to push the ammended commits
 permissions:
-  content: write
+  content: write-all
 
 jobs:
   something:
