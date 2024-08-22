@@ -6,14 +6,12 @@ on:
 
 jobs:
   something:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/github-script@v7
-        if: github.event.action != 'closed'
         with:
           script:
             console.log(context)
