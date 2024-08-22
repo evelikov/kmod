@@ -4,10 +4,6 @@ on:
   issue_comment:
     types: [created]
 
-# Need write perm, in order to push the ammended commits
-permissions:
-  content: write-all
-
 jobs:
   something:
     if: github.event_name == 'pull_request'
