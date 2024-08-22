@@ -17,6 +17,3 @@ jobs:
         with:
           script:
             console.log(context)
-
-
-
