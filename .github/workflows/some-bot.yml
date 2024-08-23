@@ -28,6 +28,12 @@ on:
 # - merges PR
 #
 # TEST
+#
+# octokit.rest.pulls.merge({
+#  owner,
+#  repo,
+#  pull_number,
+#});
 
 jobs:
   something:
@@ -38,15 +44,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Dump context from shell
-        env:
-          GH_CTX: ${{ toJSON(github) }}
-        run: echo $GH_CTX
-
-      - name: review state
-        run: echo ${{ github.event.review.state }}
+      - name: number
+        run: echo ${{ github.event.number }}
 
       - uses: actions/github-script@v7
         with:
           script:
             console.log(context)
+
+      - uses: actions/github-script@v7
+        with:
+          script:
+            console.log(context.issue.pull_request)
+
