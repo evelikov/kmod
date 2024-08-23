@@ -4,9 +4,33 @@ on:
   issue_comment:
     types: [created]
 
+# specs:
+# on comment:
+#
+# ## optional/other project(s)
+# --- reviewer+ can
+# /remove tagname - can also revoke rb, ack, etc.
+# /fixes sha - validate sha in-tree(?)
+# /closes issue-num - validate or extend to full issue URL
+# /reviewed-by /rb, /ack, /nack
+#
+# - process top-to-bottom
+# - amend/push commits or add/remove labels
+# - XXX how to handle individual commits ? /commit-in-pr sha above actions?
+# ##
+#
+# --- maintainer+ can
+# /merge
+# - collects ^^ tags and amends commits (if applicable)
+#   - for person tags use in-tree @nick <> email DB
+# - treat "approved" PRs as rb, do ^^ appropriatelly
+# - add maintainer tag - SoB, RB, other
+# - merges PR
 
 jobs:
   something:
+    name: Parse maintainer requests
+    if: ${{ github.event.issue.pull_request }}
     runs-on: ubuntu-latest
 
     steps:
