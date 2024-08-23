@@ -26,6 +26,8 @@ on:
 # - treat "approved" PRs as rb, do ^^ appropriatelly
 # - add maintainer tag - SoB, RB, other
 # - merges PR
+#
+# TEST
 
 jobs:
   something:
