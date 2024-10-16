@@ -137,6 +137,8 @@ struct index_node {
 	struct index_value *values;
 	unsigned char first; /* range of child nodes */
 	unsigned char last;
+	uint32_t size; /* size of node */
+	uint32_t total; /* size of node and its children */
 	struct index_node *children[INDEX_CHILDMAX]; /* indexed by character */
 };
 
@@ -255,6 +257,9 @@ static int index_insert(struct index_node *node, const char *key, const char *va
 	while (1) {
 		int j; /* index within node->prefix */
 
+		/* Recalculate sizes when requested */
+		node->size = node->total = 0;
+
 		/* Ensure node->prefix is a prefix of &str[i].
 		   If it is not already, then we must split node. */
 		for (j = 0; node->prefix[j]; j++) {
@@ -322,26 +327,88 @@ static int index__haschildren(const struct index_node *node)
 	return node->first < INDEX_CHILDMAX;
 }
 
-/* Recursive post-order traversal
+static uint32_t index_get_mask(const struct index_node *node)
+{
+	uint32_t mask = 0;
 
-   Pre-order would make for better read-side buffering / readahead / caching.
-   (post-order means you go backwards in the file as you descend the tree).
-   However, index reading is already fast enough.
-   Pre-order is simpler for writing, and depmod is already slow.
- */
-static uint32_t index_write__node(const struct index_node *node, FILE *out)
+	if (!node)
+		return mask;
+
+	if (index__haschildren(node))
+		mask |= INDEX_NODE_CHILDS;
+
+	if (node->prefix[0])
+		mask |= INDEX_NODE_PREFIX;
+
+	if (node->values)
+		mask |= INDEX_NODE_VALUES;
+
+	return mask;
+}
+
+static void index_get_size(struct index_node *node, uint32_t *size, uint32_t *total)
+{
+	if (!node)
+		return;
+
+	if (node->total > 0) {
+		*size = node->size;
+		*total = node->total;
+		return;
+	}
+
+	if (index__haschildren(node)) {
+		struct index_node *child;
+		int i;
+		uint8_t child_count;
+
+		child_count = node->last - node->first + 1;
+
+		node->size += 2;
+		node->size += child_count * sizeof(uint32_t);
+		for (i = 0; i < child_count; i++) {
+			uint32_t s, t;
+			child = node->children[node->first + i];
+			index_get_size(child, &s, &t);
+			node->total += t;
+		}
+	}
+
+	if (node->prefix[0])
+		node->size += strlen(node->prefix) + 1;
+
+	if (node->values) {
+		const struct index_value *v;
+
+		node->size += sizeof(uint32_t);
+
+		for (v = node->values; v != NULL; v = v->next) {
+			node->size += sizeof(uint32_t);
+			node->size += strlen(v->value) + 1;
+		}
+	}
+	node->total += node->size;
+
+	*size = node->size;
+	*total = node->total;
+}
+
+/* Recursive pre-order traversal */
+static uint32_t index_write__node(struct index_node *node, FILE *out, long offset)
 {
 	uint32_t *child_offs = NULL;
 	int child_count = 0;
-	long offset;
+	uint32_t size, total;
 
 	if (!node)
 		return 0;
 
-	/* Write children and save their offsets */
+	index_get_size(node, &size, &total);
+
+	/* Calculate children offsets */
 	if (index__haschildren(node)) {
-		const struct index_node *child;
 		int i;
+		size_t sizes = 0;
 
 		child_count = node->last - node->first + 1;
 		child_offs = malloc(child_count * sizeof(uint32_t));
@@ -349,25 +416,31 @@ static uint32_t index_write__node(const struct index_node *node, FILE *out)
 			fatal_oom();
 
 		for (i = 0; i < child_count; i++) {
+			struct index_node *child;
+
 			child = node->children[node->first + i];
-			child_offs[i] = htonl(index_write__node(child, out));
+			if (child == NULL) {
+				child_offs[i] = 0;
+			} else {
+				uint32_t mask, s, t;
+				mask = index_get_mask(child);
+				index_get_size(child, &s, &t);
+				child_offs[i] = htonl((offset + sizes + size) | mask);
+				sizes += t;
+			}
 		}
 	}
 
-	/* Now write this node */
-	offset = ftell(out);
-
+	/* Write this node */
 	if (node->prefix[0]) {
 		fputs(node->prefix, out);
 		fputc('\0', out);
-		offset |= INDEX_NODE_PREFIX;
 	}
 
 	if (child_count) {
 		fputc(node->first, out);
 		fputc(node->last, out);
 		fwrite(child_offs, sizeof(uint32_t), child_count, out);
-		offset |= INDEX_NODE_CHILDS;
 	}
 
 	free(child_offs);
@@ -389,15 +462,32 @@ static uint32_t index_write__node(const struct index_node *node, FILE *out)
 			fputs(v->value, out);
 			fputc('\0', out);
 		}
-		offset |= INDEX_NODE_VALUES;
 	}
 
-	return offset;
+	/* Now write children */
+	if (child_count) {
+		int i;
+
+		offset += size;
+		for (i = 0; i < child_count; i++) {
+			struct index_node *child;
+
+			child = node->children[node->first + i];
+			if (child != NULL) {
+				uint32_t s, t;
+				index_get_size(child, &s, &t);
+				index_write__node(child, out, offset);
+				offset += t;
+			}
+		}
+	}
+
+	return 0;
 }
 
-static void index_write(const struct index_node *node, FILE *out)
+static void index_write(struct index_node *node, FILE *out)
 {
-	long initial_offset, final_offset;
+	const uint32_t first_off = 3 * sizeof(uint32_t);
 	uint32_t u;
 
 	u = htonl(INDEX_MAGIC);
@@ -405,21 +495,12 @@ static void index_write(const struct index_node *node, FILE *out)
 	u = htonl(INDEX_VERSION);
 	fwrite(&u, sizeof(u), 1, out);
 
-	/* Second word is reserved for the offset of the root node */
-	initial_offset = ftell(out);
-	assert(initial_offset >= 0);
-	u = 0;
-	fwrite(&u, sizeof(uint32_t), 1, out);
+	/* Write offset of first node */
+	u = htonl(first_off | index_get_mask(node));
+	fwrite(&u, sizeof(u), 1, out);
 
 	/* Dump trie */
-	u = htonl(index_write__node(node, out));
-
-	/* Update first word */
-	final_offset = ftell(out);
-	assert(final_offset >= 0);
-	(void)fseek(out, initial_offset, SEEK_SET);
-	fwrite(&u, sizeof(uint32_t), 1, out);
-	(void)fseek(out, final_offset, SEEK_SET);
+	index_write__node(node, out, first_off);
 }
 
 /* configuration parsing **********************************************/
