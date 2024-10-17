@@ -327,12 +327,9 @@ static int index__haschildren(const struct index_node *node)
 	return node->first < INDEX_CHILDMAX;
 }
 
-static uint32_t index_get_mask(const struct index_node *node)
+static _nonnull_all_ uint32_t index_get_mask(const struct index_node *node)
 {
 	uint32_t mask = 0;
-
-	if (!node)
-		return mask;
 
 	if (index__haschildren(node))
 		mask |= INDEX_NODE_CHILDS;
@@ -346,31 +343,15 @@ static uint32_t index_get_mask(const struct index_node *node)
 	return mask;
 }
 
-static void index_get_size(struct index_node *node, uint32_t *size, uint32_t *total)
+static _nonnull_all_ uint32_t index_calc_sizes(struct index_node *node)
 {
-	if (!node)
-		return;
-
-	if (node->total > 0) {
-		*size = node->size;
-		*total = node->total;
-		return;
-	}
-
 	if (index__haschildren(node)) {
-		struct index_node *child;
-		int i;
-		uint8_t child_count;
-
-		child_count = node->last - node->first + 1;
-
-		node->size += 2;
-		node->size += child_count * sizeof(uint32_t);
-		for (i = 0; i < child_count; i++) {
-			uint32_t s, t;
-			child = node->children[node->first + i];
-			index_get_size(child, &s, &t);
-			node->total += t;
+		node->size += 2; /* first + last, unsigned char */
+		node->size += (node->last - node->first + 1) * sizeof(uint32_t);
+		for (int idx = node->first; idx <= node->last; idx++) {
+			struct index_node *child = node->children[idx];
+			if (child != NULL)
+				node->total += index_calc_sizes(child);
 		}
 	}
 
@@ -389,44 +370,36 @@ static void index_get_size(struct index_node *node, uint32_t *size, uint32_t *to
 	}
 	node->total += node->size;
 
-	*size = node->size;
-	*total = node->total;
+	return node->total;
 }
 
 /* Recursive pre-order traversal */
 static uint32_t index_write__node(struct index_node *node, FILE *out, long offset)
 {
-	uint32_t *child_offs = NULL;
+	uint32_t children_offs[INDEX_CHILDMAX] = {};
 	int child_count = 0;
-	uint32_t size, total;
 
 	if (!node)
 		return 0;
 
-	index_get_size(node, &size, &total);
+	offset += node->size;
 
 	/* Calculate children offsets */
 	if (index__haschildren(node)) {
-		int i;
-		size_t sizes = 0;
+		size_t child_offs = offset;
 
 		child_count = node->last - node->first + 1;
-		child_offs = malloc(child_count * sizeof(uint32_t));
-		if (child_offs == NULL)
-			fatal_oom();
 
-		for (i = 0; i < child_count; i++) {
+		for (int i = 0; i < child_count; i++) {
 			struct index_node *child;
 
 			child = node->children[node->first + i];
 			if (child == NULL) {
-				child_offs[i] = 0;
+				children_offs[i] = 0;
 			} else {
-				uint32_t mask, s, t;
-				mask = index_get_mask(child);
-				index_get_size(child, &s, &t);
-				child_offs[i] = htonl((offset + sizes + size) | mask);
-				sizes += t;
+				uint32_t mask = index_get_mask(child);
+				children_offs[i] = htonl(child_offs | mask);
+				child_offs += child->total;
 			}
 		}
 	}
@@ -440,10 +413,8 @@ static uint32_t index_write__node(struct index_node *node, FILE *out, long offse
 	if (child_count) {
 		fputc(node->first, out);
 		fputc(node->last, out);
-		fwrite(child_offs, sizeof(uint32_t), child_count, out);
+		fwrite(children_offs, sizeof(uint32_t), child_count, out);
 	}
-
-	free(child_offs);
 
 	if (node->values) {
 		const struct index_value *v;
@@ -466,23 +437,14 @@ static uint32_t index_write__node(struct index_node *node, FILE *out, long offse
 
 	/* Now write children */
 	if (child_count) {
-		int i;
-
-		offset += size;
-		for (i = 0; i < child_count; i++) {
-			struct index_node *child;
-
-			child = node->children[node->first + i];
-			if (child != NULL) {
-				uint32_t s, t;
-				index_get_size(child, &s, &t);
-				index_write__node(child, out, offset);
-				offset += t;
-			}
+		for (int idx = node->first; idx <= node->last; idx++) {
+			struct index_node *child = node->children[idx];
+			if (child != NULL)
+				offset += index_write__node(child, out, offset);
 		}
 	}
 
-	return 0;
+	return node->total;
 }
 
 static void index_write(struct index_node *node, FILE *out)
@@ -500,6 +462,8 @@ static void index_write(struct index_node *node, FILE *out)
 	fwrite(&u, sizeof(u), 1, out);
 
 	/* Dump trie */
+	index_calc_sizes(node);
+	/* what do you mean, we can check if the function was successful :-P */
 	index_write__node(node, out, first_off);
 }
 
