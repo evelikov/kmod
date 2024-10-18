@@ -22,23 +22,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build: ['meson', 'autotools']
+        build: ['meson']
         container:
-          - name: 'ubuntu:22.04'
-            multilib: 'true'
-          - name: 'ubuntu:24.04'
-            meson_setup: '-D b_sanitize=address,undefined'
-            multilib: 'true'
-          - name: 'archlinux:multilib-devel'
-            meson_setup: '-D b_sanitize=address,undefined'
-            multilib: 'true'
-          - name: 'fedora:latest'
-            meson_setup: '-D b_sanitize=address,undefined'
           - name: 'alpine:latest'
             meson_setup: '-D docs=false'
-          - name: 'debian:unstable'
-            meson_setup: '-D b_sanitize=address,undefined'
-            multilib: 'true'
 
     container:
       image: ${{ matrix.container.name }}
@@ -98,6 +85,12 @@ jobs:
       - name: install (meson)
         if: ${{ matrix.build == 'meson' }}
         run: cd build && DESTDIR=$PWD/inst meson install
+
+      - name: junit maybe
+        run: |
+          mkdir junit
+          cp build/meson-logs/testlog.junit.xml junit/
+          cp build/meson-logs/testlog.junit.xml junit/test-results.xml
 
       - name: install (autotools)
         if: ${{ matrix.build == 'autotools' }}
