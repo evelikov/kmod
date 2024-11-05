@@ -73,7 +73,7 @@ jobs:
 
       - name: configure (meson)
         if: ${{ matrix.build == 'meson' }}
-        run: mkdir build && cd build && meson setup --native-file ../build-dev.ini ${{ matrix.container.meson_setup }} . ..
+        run: mkdir build && cd build && meson setup --native-file ../build-dev.ini -D b_coverage=true ${{ matrix.container.meson_setup }} . ..
 
       - name: configure (autotools)
         if: ${{ matrix.build == 'autotools' }}
@@ -90,6 +90,16 @@ jobs:
       - name: test (meson)
         if: ${{ matrix.build == 'meson' }}
         run: cd build && meson test || meson test --verbose
+
+      - name: Generate Coverage
+        run: ninja -C build coverage-xml
+
+      - name: Upload Coverage
+        if: ${{ matrix.build == 'meson' }}
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4.6.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: build/meson-logs/coverage.xml
 
       - name: test (autotools)
         if: ${{ matrix.build == 'autotools' }}
