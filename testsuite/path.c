@@ -32,8 +32,7 @@ static size_t rootpathlen;
 
 static inline bool need_trap(const char *path)
 {
-	return path != NULL && path[0] == '/' &&
-	       !strnstartswith(path, rootpath, rootpathlen);
+	return path != NULL && path[0] == '/' && !strstartswith(path, ABS_TOP_BUILDDIR);
 }
 
 static const char *trap_path(const char *path, char buf[PATH_MAX * 2])
