@@ -92,6 +92,7 @@ jobs:
         run: cd build && meson test || meson test --verbose
 
       - name: Generate Coverage
+        if: ${{ matrix.build == 'meson' }}
         run: ninja -C build coverage-xml
 
       - name: Upload Coverage
