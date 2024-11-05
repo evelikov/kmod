@@ -488,6 +488,8 @@ int kmod_lookup_alias_from_builtin_file(struct kmod_ctx *ctx, const char *name,
 		*list = kmod_list_append(*list, mod);
 		if (*list == NULL)
 			err = -ENOMEM;
+	} else {
+		ERR(ctx, "Test test\n");
 	}
 
 finish:
