@@ -35,13 +35,15 @@ jobs:
             only_bits: '64'
           - container: 'archlinux:multilib-devel'
           - container: 'debian:bookworm-slim'
-            meson_setup: '-Dzstd=disabled -Dxz=disabled -Dzlib=disabled'
+            meson_setup: '-Dzstd=disabled -Dxz=disabled -Dzlib=disabled -Dmbedtls=disabled'
             only_compiler: 'gcc'
           - container: 'debian:unstable'
           - container: 'fedora:latest'
             only_bits: '64'
           - container: 'ubuntu:22.04'
+            meson_setup: '-Dmbedtls=disabled'
           - container: 'ubuntu:24.04'
+            meson_setup: '-Dmbedtls=disabled'
 
           # Special configurations
 
@@ -73,6 +75,13 @@ jobs:
             only_bits: '64'
             only_compiler: 'gcc'
             custom: 'custom-moduledir'
+
+          # Variant without openssl - only mbedtls
+          - container: 'archlinux:multilib-devel'
+            meson_setup: '-Dopenssl=disabled'
+            only_bits: '64'
+            only_compiler: 'gcc'
+            custom: 'mbedtls-only'
 
     container:
       image: ${{ matrix.container }}
@@ -116,8 +125,8 @@ jobs:
           should_fail -D dlopen=nonexistent
           should_fail -D xz=disabled -D dlopen=xz
 
-          should_pass -D dlopen=xz
-          should_pass -D dlopen=xz -D xz=enabled
+          should_pass -D mbedtls=disabled -D dlopen=xz
+          should_pass -D mbedtls=disabled -D dlopen=xz -D xz=enabled
 
       - name: configure
         run: |
