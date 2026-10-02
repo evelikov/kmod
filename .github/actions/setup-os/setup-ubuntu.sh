@@ -10,9 +10,9 @@ export TZ=Etc/UTC
 # shellcheck source=/dev/null
 . /etc/os-release
 
-mbedtls_pkgs=()
-if [[ "$VERSION_CODENAME" == "resolute" ]]; then
-    mbedtls_pkgs=("libmbedtls-dev")
+mbedtls_pkgs=("libmbedtls-dev")
+if [[ "$VERSION_CODENAME" == "noble" ]]; then
+    mbedtls_pkgs=()
 fi
 
 apt-get update
