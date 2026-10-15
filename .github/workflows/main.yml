@@ -117,6 +117,12 @@ jobs:
               export MAKEFLAGS="${{ matrix.modules_makeflags }}"
             fi
             meson test -C "$1" || meson test -C "$1" --verbose
+
+            if [[ -z "${{ matrix.skip_mbedtls_fallback }}" ]]; then
+              find /usr -name "libcrypto.so.*" -exec mv {} {}.orig \;
+              meson test -C "$1" || meson test -C "$1" --verbose
+              find /usr -name "libcrypto.so.*.orig" -exec sh -c 'mv {} $(echo {} | sed "s/.orig$//")' \;
+            fi
           }
           source .github/functions.sh
           for_each_config "${{ matrix.only_compiler }}" "${{ matrix.only_bits }}" "${{ matrix.custom }}" do_test

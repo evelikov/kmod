@@ -70,7 +70,8 @@
     "tag": "ubuntu-24.04",
     "build-variants": [
       {
-        "meson_setup": "-Dmbedtls=disabled"
+        "meson_setup": "-Dmbedtls=disabled",
+        "skip_mbedtls_fallback": "1"
       }
     ]
   },

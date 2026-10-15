@@ -35,7 +35,7 @@ jobs:
       matrix:
         include:
           - os: 'ubuntu-26.04'
-            meson_setup: '-D b_sanitize=none -D b_coverage=true -Dmbedtls=disabled'
+            meson_setup: '-D b_sanitize=none -D b_coverage=true'
 
     container:
       image: ${{ inputs.image_repo || 'ghcr.io/kmod-project/kmod-ci' }}:${{ matrix.os }}${{ inputs.image_suffix }}
@@ -62,6 +62,9 @@ jobs:
           meson setup --native-file build-dev.ini ${{ matrix.meson_setup }} builddir/
           meson compile -C builddir/
           meson test -C builddir/
+          find /usr -name "libcrypto.so.*" -exec mv {} {}.orig \;
+          meson test -C builddir/
+          find /usr -name "libcrypto.so.*.orig" -exec sh -c 'mv {} $(echo {} | sed "s/.orig$//")' \;
           ninja -C builddir/ coverage-xml
 
       - name: Upload Coverage
