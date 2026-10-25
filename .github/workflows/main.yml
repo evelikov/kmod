@@ -135,6 +135,8 @@ jobs:
               export MAKEFLAGS="${{ matrix.modules_makeflags }}"
             fi
             meson test -C "$1" || meson test -C "$1" --verbose
+            find /usr -name libcrypto.so.3 -delete
+            meson test -C "$1" || meson test -C "$1" --verbose
           }
           source .github/functions.sh
           for_each_config "${{ matrix.only_compiler }}" "${{ matrix.only_bits }}" "${{ matrix.custom }}" do_test
