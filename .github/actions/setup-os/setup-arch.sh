@@ -18,6 +18,6 @@ pacman --noconfirm -Su \
     gtk-doc \
     linux-headers \
     lld \
-    mbedtls3 \
+    mbedtls \
     meson \
     scdoc
