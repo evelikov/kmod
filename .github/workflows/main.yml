@@ -88,6 +88,7 @@ jobs:
               setup_options="$setup_options -Db_sanitize=none"
             fi
 
+            [[ -n "${{ matrix.pkgconfig_path }}" ]] && export PKG_CONFIG_PATH="${{ matrix.pkgconfig_path }}"
             [[ -n "${{ matrix.linker }}" ]] && export CC_LD="${{ matrix.linker }}"
             meson setup --native-file build-dev.ini $setup_options "$1"
           }
