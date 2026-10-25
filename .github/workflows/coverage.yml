@@ -44,7 +44,7 @@ jobs:
           meson setup --native-file build-dev.ini ${{ matrix.meson_setup }} builddir/
           meson compile -C builddir/
           meson test -C builddir/
-          find / -name libcrypto.so.3 -delete
+          find /usr -name libcrypto.so.3 -delete
           meson test -C builddir/
           ninja -C builddir/ coverage-xml
 
