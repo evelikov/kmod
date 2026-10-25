@@ -564,9 +564,9 @@ static bool fd_cmp_exact(struct fd_cmp *fd_cmp)
 	}
 
 	fd_cmp->buf[r] = '\0';
-	fd_cmp->buf_match[r] = '\0';
+	fd_cmp->buf_match[done] = '\0';
 
-	if (!streq(fd_cmp->buf, fd_cmp->buf_match)) {
+	if (r != done || !streq(fd_cmp->buf, fd_cmp->buf_match)) {
 		TS_ERR("Outputs do not match on %s:\n", fd_cmp->name);
 		TS_ERR("correct:\n%s\n", fd_cmp->buf_match);
 		TS_ERR("wrong:\n%s\n", fd_cmp->buf);
