@@ -549,7 +549,8 @@ static bool fd_cmp_exact(struct fd_cmp *fd_cmp)
 
 	/* read as much data from fd_match as we read from fd */
 	for (;;) {
-		rmatch = read(fd_cmp->fd_match, fd_cmp->buf_match + done, r - done);
+		rmatch = read(fd_cmp->fd_match, fd_cmp->buf_match + done,
+				sizeof(fd_cmp->buf_match) - 1 - done);
 		if (rmatch == 0)
 			break;
 
@@ -568,8 +569,8 @@ static bool fd_cmp_exact(struct fd_cmp *fd_cmp)
 
 	if (r != done || !streq(fd_cmp->buf, fd_cmp->buf_match)) {
 		TS_ERR("Outputs do not match on %s:\n", fd_cmp->name);
-		TS_ERR("correct:\n---\n%s\n---\n", fd_cmp->buf_match);
-		TS_ERR("wrong:\n---\n%s\n---\n", fd_cmp->buf);
+		TS_ERR("correct:\n---\n%s---\n", fd_cmp->buf_match);
+		TS_ERR("wrong:\n---\n%s---\n", fd_cmp->buf);
 		return false;
 	}
 

@@ -116,10 +116,12 @@ bool kmod_fill_pkcs7_mbedtls(const char *mem, off_t size, size_t sig_len,
 
 	sym_mbedtls_pkcs7_init(&pkcs7);
 	ret = sym_mbedtls_pkcs7_parse_der(&pkcs7, pkcs7_raw, sig_len);
+	fprintf(stderr, "PPPP %d\n", ret);
 	if (ret < 0)
 		goto err;
 
 	signed_data = &pkcs7.MBEDTLS_PRIVATE(signed_data);
+	fprintf(stderr, "nummmmmm %d\n", signed_data->MBEDTLS_PRIVATE(no_of_signers));
 	signers = &signed_data->MBEDTLS_PRIVATE(signers);
 
 	hash_algo = to_hash_algo(&signed_data->MBEDTLS_PRIVATE(digest_alg_identifiers));
@@ -142,6 +144,7 @@ bool kmod_fill_pkcs7_mbedtls(const char *mem, off_t size, size_t sig_len,
 	total_len += signers->MBEDTLS_PRIVATE(sig).len;
 
 	sig_info = calloc(1, total_len);
+	fprintf(stderr, "TT %ld, struct %ld\n", total_len, sizeof(struct kmod_signature_info));
 	if (sig_info == NULL)
 		goto err;
 
@@ -152,6 +155,7 @@ bool kmod_fill_pkcs7_mbedtls(const char *mem, off_t size, size_t sig_len,
 	/* signer */
 	sig_info->signer = p;
 	sig_info->signer_len = signers->MBEDTLS_PRIVATE(issuer).val.len;
+	fprintf(stderr, "SSSSSSSSSSSS %ld\n", sig_info->signer_len);
 
 	memcpy(p, signers->MBEDTLS_PRIVATE(issuer).val.p, sig_info->signer_len);
 	p += sig_info->signer_len;
