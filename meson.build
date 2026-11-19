@@ -109,10 +109,10 @@ add_project_arguments(
     '-Wnested-externs',
     '-Wno-attributes',
     '-Wno-declaration-after-statement',
+    '-Wno-redundant-decls', # mbedtls 3.6.4 introduces some instances
     '-Wno-unused-parameter',
     '-Wold-style-definition',
     '-Wpointer-arith',
-    '-Wredundant-decls',
     '-Wshadow',
     '-Wsign-compare',
     '-Wstrict-aliasing=3',
